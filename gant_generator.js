@@ -113,7 +113,6 @@ function generateMermaidGantt(nodes) {
   tickInterval 1week
   weekday tuesday
   
-  section Tasks
 `
 
   nodes.forEach((node) => {

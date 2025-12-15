@@ -178,19 +178,19 @@
         };
     </script>
     <div class="wrapper">
-        <iframe id="pm" src="/pipeline-manager?spec=gantt-specification.json"></iframe>
+        <iframe id="pm" src="/pipeline-manager"></iframe>
         <div>
             <div id="controls">
                 <div id="buttons">
-                    <button onclick="graph_get()">Get graph</button>
-                    <button onclick="specification_change()">Set specification</button>
-                    <button onclick="graph_change()">Set graph</button>
-                    <button onclick="any_request()">Handle provided request</button>
+                  <button onclick="graph_get()">Refresh graph</button>
+                  <input type="text" id="title" placeholder="Gantt title" />
+                  <label><input type="checkbox" id="autorefresh" /> Autorefresh</label>
+                  <button onclick="graph_get()">More options</button>
                 </div>
                 <div class="io-container">
-                    <div id="frontend-endpoint-responses">
-                      <h2>No gantt generated</h2>
-                    </div>
+                  <div id="frontend-endpoint-responses">
+                    <h2>No gantt generated</h2>
+                  </div>
             </div>
         </div>
     </div>
