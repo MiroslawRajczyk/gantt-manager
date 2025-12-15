@@ -13,6 +13,11 @@ class Node {
   }
 }
 
+function get_date(str) {
+  const dateSplit = str.split('-');
+  return new Date(dateSplit[2], dateSplit[1] - 1, dateSplit[0]);
+}
+
 function generateGraph(graph) {
   let afterToNode = {};
   let beforeToNode = {};
@@ -40,10 +45,10 @@ function generateGraph(graph) {
   // Remove start nodes
   nodes.forEach(node => {
     if (node.name !== 'Start') return;
-    const dateSplit = node.properties['Start Date'].split('-');
+    const date = get_date(node.properties['Start Date']);
     node.interfaces['After'].other.forEach((toNode) => {
       toNode.interfaces['Before'].other = toNode.interfaces['Before'].other.filter(n => n.id !== node.id);
-      toNode.startDate = new Date(dateSplit[2], dateSplit[1] - 1, dateSplit[0]);
+      toNode.startDate = structuredClone(date);
     });
   });
   nodes = nodes.filter(node => node.name !== 'Start');
@@ -147,13 +152,84 @@ function generateMermaidGantt(nodes) {
   return ans;
 }
 
+function detectCycles(nodes) {
+  let visited = new Set();
+  let recStack = new Set();
+
+  function visit(node) {
+    if (recStack.has(node.id)) return true;
+    if (visited.has(node.id)) return false;
+
+    visited.add(node.id);
+    recStack.add(node.id);
+
+    for (let neighbor of node.interfaces['After'].other) {
+      if (visit(neighbor)) return true;
+    }
+
+    recStack.delete(node.id);
+    return false;
+  }
+
+  nodes.forEach(visit);
+
+  return false;
+}
+
+function checkNames(nodes) {
+  return nodes.every((node) => {
+    return node.name === 'Start' || node.properties['Task Name'] !== '';
+  });
+}
+
+function checkDatesInStarts(nodes) {
+  console.log(nodes);
+  return nodes.every((node) => {
+    if (node.name !== 'Start') {
+      return true;
+    }
+    const startDate = node.properties.filter((c) => c.name === 'Start Date');
+    console.log(startDate);
+    if (startDate.length !== 1 || startDate[0].value === '') {
+      return false;
+    }
+    try {
+      get_date(startDate[0].value);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  });
+}
+
+function checkIfAllNodesHaveStartDates(nodes) {
+  for (let node of nodes) {
+    if (node.startDate === undefined) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function generateGanttChart(data) {
-  let graph = generateGraph(data.result.dataflow.graphs[0]);
+  if (!checkDatesInStarts(data.nodes)) {
+    throw new Error('All Starts must have a start date.');
+  }
+  let graph = generateGraph(data);
+  if (!checkNames(graph)) {
+    throw new Error('All tasks must have a name.');
+  }
+  if (detectCycles(graph)) {
+    throw new Error('The graph contains cycles. Cannot generate Gantt chart.');
+  }
   console.log(`Generated graph with ${graph.length} nodes`);
   console.log(graph);
   let sortedNodes = topologicalSort(graph);
   console.log(`Generated graph with ${sortedNodes.length} nodes 2`);
   sortedNodes = markDates(sortedNodes);
+  if (!checkIfAllNodesHaveStartDates(sortedNodes)) {
+    throw new Error('Could not determine start dates for all tasks.');
+  }
   console.log(`Generated graph with ${sortedNodes.length} nodes 3`);
   return generateMermaidGantt(sortedNodes);
 }

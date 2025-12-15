@@ -83,16 +83,6 @@
         }
         let defaultSpecification;
 
-        const load = async (path) => fetch(path).then((response) => response.json())
-
-        // load('./gantt-specification.json')
-        //   .then((data) => {
-        //     data.metadata.notifyWhenChanged = true;
-        //     defaultSpecification = data;
-        //     console.log('Default specification loaded.');
-        //   });
-
-
         const logJson = (containerId, content) => {
           document.getElementById(containerId).innerHTML = JSON.stringify(content, null, 4);
         };
@@ -128,10 +118,18 @@
           if (data.method !== undefined) {
             const response = handleExternalRequest(data);
             sendPM(createJSONRPCResponse(data.id, response));
-          } else {
-            renderMermaid(generateGanttChart(data)).then((svg) => {
-              document.getElementById('frontend-endpoint-responses').innerHTML = svg;
-            });
+          } else if (data.result !== undefined && data.result.dataflow !== undefined && data.result.dataflow.graphs !== undefined) {
+            console.log('Received data from PM:', event);
+            const target = document.getElementById('frontend-endpoint-responses');
+            try {
+              const mermaidMD = generateGanttChart(data.result.dataflow.graphs[0]);
+              renderMermaid(mermaidMD).then((svg) => {
+                target.innerHTML = svg;
+              });
+            } catch (error) {
+              console.log('Error generating Gantt chart:', error.message);
+              sendPM({ method: 'notification_send', params: { type: 'error', title: error.message, details: error.message } });
+            }
           }
         });
 

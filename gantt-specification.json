@@ -53,7 +53,6 @@
           "direction": "input",
           "maxConnectionsCount": -1
         },
-
         {
           "name": "After",
           "direction": "output",
@@ -67,13 +66,15 @@
         {
           "name": "Start Date",
           "type": "text",
+          "description": "Format: DD-MM-YYYY",
           "default": ""
         }
       ],
       "interfaces": [
         {
           "name": "After",
-          "direction": "output"
+          "direction": "output",
+          "maxConnectionsCount": -1
         }
       ]
     }
