@@ -88,7 +88,12 @@ function markDates(nodes) {
         endDate.setDate(endDate.getDate() + parseInt(node.properties['Duration']) * 7);
         break;
       case 'Months':
-        endDate.setMonth(endDate.getMonth() + parseInt(node.properties['Duration']));
+        let newMonth = endDate.getMonth() + parseInt(node.properties['Duration']);
+        while (newMonth > 11) {
+          newMonth -= 12;
+          endDate.setFullYear(endDate.getFullYear() + 1);
+        }
+        endDate.setMonth(newMonth);
         break;
     }
     node.interfaces['After'].other.forEach((toNode) => {
@@ -102,6 +107,39 @@ function markDates(nodes) {
   nodes
     .filter((node) => node.startDate !== undefined)
     .forEach(visit);
+
+  // Dates deduction
+  function visitDeduce(node) {
+    if (node.startDate !== undefined) return;
+    node.interfaces['After'].other.forEach(visitDeduce);
+    let minDate = null;
+    node.interfaces['After'].other.forEach((next) => {
+      if (minDate === null || next.startDate < minDate) {
+        minDate = next.startDate;
+      }
+    });
+    if (minDate === null) throw new Error('Could not deduce start date for all tasks.');
+    let startDate = new Date(minDate);
+    switch (node.properties['Time units']) {
+      case 'Days':
+        startDate.setDate(startDate.getDate() - parseInt(node.properties['Duration']));
+        break;
+      case 'Weeks':
+        startDate.setDate(startDate.getDate() - parseInt(node.properties['Duration']) * 7);
+        break;
+      case 'Months':
+        let newMonth = startDate.getMonth() - parseInt(node.properties['Duration']);
+        while (newMonth < 0) {
+          newMonth += 12;
+          startDate.setFullYear(startDate.getFullYear() - 1);
+        }
+        startDate.setMonth(newMonth);
+        break;
+    }
+    node.startDate = startDate;
+  }
+  nodes.forEach(visitDeduce);
+
   return nodes;
 }
 
@@ -139,7 +177,7 @@ function generateMermaidGantt(nodes, propeties) {
         timeUnits = 'w';
         break;
       case 'Months':
-        timeUnits = 'm';
+        timeUnits = 'M';
         break;
     }
     if (node.properties['Critical'] === true || node.properties['Critical'] === 'true') {
@@ -181,24 +219,6 @@ function checkNames(nodes) {
   });
 }
 
-function checkDatesInStarts(nodes) {
-  return nodes.every((node) => {
-    if (node.name !== 'Start') {
-      return true;
-    }
-    const startDate = node.properties.filter((c) => c.name === 'Start Date');
-    if (startDate.length !== 1 || startDate[0].value === '') {
-      return false;
-    }
-    try {
-      get_date(startDate[0].value);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  });
-}
-
 function checkIfAllNodesHaveStartDates(nodes) {
   for (let node of nodes) {
     if (node.startDate === undefined) {
@@ -209,9 +229,6 @@ function checkIfAllNodesHaveStartDates(nodes) {
 }
 
 function generateGanttChart(data, propeties) {
-  if (!checkDatesInStarts(data.nodes)) {
-    throw new Error('All Starts must have a start date.');
-  }
   let graph = generateGraph(data);
   if (!checkNames(graph)) {
     throw new Error('All tasks must have a name.');
